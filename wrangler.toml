@@ -1,0 +1,15 @@
+name = "signal-loop"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# FOUNDER GATE: create the database, then paste its id here:
+#   npx wrangler d1 create signal-loop
+[[d1_databases]]
+binding = "DB"
+database_name = "signal-loop"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+# Optional secret (raises GitHub API rate limit; read-only public scope is enough):
+#   npx wrangler secret put GITHUB_TOKEN
