@@ -1,0 +1,15 @@
+{
+  "name": "@jussray/signal-loop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SignalLoop social content intelligence runtime and read-only MCP boundary.",
+  "scripts": {
+    "test": "node --test",
+    "verify": "node --test",
+    "deploy": "wrangler deploy"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
