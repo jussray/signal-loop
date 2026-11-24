@@ -57,8 +57,8 @@ try {
   await page.screenshot({ path: join(out, '01-landing.png'), fullPage: true });
   step('landing renders cinematic welcome and 2 tiers (Pro shows no invented price)');
 
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-  const mobilePage = await mobile.newPage();
+  const welcomeMobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  const mobilePage = await welcomeMobile.newPage();
   await mobilePage.goto(APP + '/');
   assert.equal(await mobilePage.locator('.sl-hero-art').count(), 1);
   assert.equal(await mobilePage.locator('.sl-companion').count(), 4);
@@ -69,7 +69,7 @@ try {
   await mobilePage.locator('[data-sl-companion="nova"]').click();
   assert.equal(await mobilePage.locator('[data-sl-companion="nova"]').getAttribute('aria-pressed'), 'true');
   await mobilePage.screenshot({ path: join(out, '01-mobile-brand.png'), fullPage: true });
-  await mobile.close();
+  await welcomeMobile.close();
   step('mobile visual: responsive scene, menu and companion selection');
 
   await page.click('text=Start your signal journey');
