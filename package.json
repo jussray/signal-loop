@@ -1,16 +1,19 @@
 {
-  "name": "signal-loop",
+  "name": "@jussray/signal-loop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Proof-first build-in-public: verified commits to social drafts, behind a truth firewall.",
-  "engines": { "node": ">=22.6" },
+  "description": "SignalLoop SaaS and native read-only MCP boundary",
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
     "dev": "node --experimental-strip-types --no-warnings dev/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test tests/*.test.ts",
+    "test": "node --experimental-strip-types --no-warnings --test tests/*.test.ts test/*.test.mjs discovery/*.test.mjs",
     "e2e": "node --experimental-strip-types --no-warnings e2e/flow.e2e.ts",
-    "deploy": "wrangler d1 migrations apply signal-loop --remote && wrangler deploy"
+    "deploy": "wrangler d1 migrations apply signal-loop --remote && wrangler deploy",
+    "verify": "npm test && npm run typecheck"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,0 +1,22 @@
+name: Verify SignalLoop MCP and SaaS
+on:
+  push:
+    branches: [main, feat/standalone-freemium-v1]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
