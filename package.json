@@ -3,13 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "SignalLoop social content intelligence runtime and read-only MCP boundary.",
-  "scripts": {
-    "test": "node --test",
-    "verify": "node --test",
-    "deploy": "wrangler deploy"
-  },
+  "description": "SignalLoop SaaS and native read-only MCP boundary",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types --no-warnings dev/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test tests/*.test.ts test/*.test.mjs discovery/*.test.mjs",
+    "e2e": "node --experimental-strip-types --no-warnings e2e/flow.e2e.ts",
+    "deploy": "wrangler d1 migrations apply signal-loop --remote && wrangler deploy",
+    "verify": "npm test && npm run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright": "^1.55.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
   }
 }
