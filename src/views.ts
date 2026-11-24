@@ -138,13 +138,13 @@ export interface SignalRow {
 
 function signalCard(s: SignalRow): string {
   const reasons: string[] = JSON.parse(s.reasons || '[]');
-  const state = s.status === 'draft' ? s.decision : s.status;
+  const state = s.decision === 'blocked' ? 'blocked' : s.status === 'draft' ? s.decision : s.status;
   const editable = s.status === 'draft';
   return `<article class="card signal ${esc(state)}" data-signal="${esc(s.id)}">
 <div class="meta"><span class="pill ${esc(state)}">${esc(state)}</span><span>${esc(CHANNEL_LABELS[s.channel] ?? s.channel)}</span><span>${esc(s.repo_full_name)}@${esc(s.commit_sha.slice(0, 7))}</span><span>${s.draft.length}/${CHANNEL_LIMITS[s.channel]}</span></div>
 <pre id="d-${esc(s.id)}">${esc(s.draft)}</pre>
 ${reasons.length && s.decision === 'blocked' ? `<ul class="reasons">${reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
-<div class="actions"><button class="btn ghost sm" type="button" data-copy="d-${esc(s.id)}">Copy</button>
+<div class="actions">${s.status === 'approved' && s.decision !== 'blocked' ? `<button class="btn ghost sm" type="button" data-copy="d-${esc(s.id)}">Copy</button>` : ''}
 <a class="btn ghost sm" href="${esc(s.commit_url)}" target="_blank" rel="noopener noreferrer">Proof</a>
 ${editable && s.decision !== 'blocked' ? `<form method="post" action="/app/signals/${esc(s.id)}/approve"><button class="btn sm" type="submit">Approve</button></form>` : ''}
 ${editable ? `<form method="post" action="/app/signals/${esc(s.id)}/reject"><button class="btn ghost sm" type="submit">Reject</button></form>` : ''}</div>

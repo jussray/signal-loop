@@ -37,6 +37,33 @@ const SECRET_PATTERNS: Array<[string, RegExp]> = [
   ['inline password', /\b(password|passwd|secret|api[_-]?key)\s*[=:]\s*\S{6,}/i],
 ];
 
+/** Classify source text before redacting and discarding it. */
+export function sourceSensitiveViolations(input: string): string[] {
+  const issues: string[] = [];
+  for (const [label, pattern] of SECRET_PATTERNS) if (pattern.test(input)) issues.push(`possible secret detected (${label})`);
+  if (PROMPT_LEAK_PATTERNS.some(pattern => pattern.test(input))) issues.push('looks like leaked prompt/instructions text');
+  return [...new Set(issues)];
+}
+
+/** Remove source credentials and repo-specific private phrases before display or storage. */
+export function redactSensitive(input: string, neverExpose: string[] = []): string {
+  let redacted = input;
+  for (const [, pattern] of SECRET_PATTERNS) {
+    redacted = redacted.replace(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'), '[redacted]');
+  }
+  for (const pattern of PROMPT_LEAK_PATTERNS) {
+    redacted = redacted.replace(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'), '[redacted prompt text]');
+  }
+  const escapePattern = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\/** Claims a commit can never prove on its own. Users add repo-specific ones. */');
+  for (const term of neverExpose) {
+    const parts = term.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) continue;
+    const p = new RegExp(parts.map(escapePattern).join('\\s+'), 'gi');
+    redacted = redacted.replace(p, '[redacted]');
+  }
+  return redacted;
+}
+
 /** Claims a commit can never prove on its own. Users add repo-specific ones. */
 export const DEFAULT_NEVER_CLAIM = [
   'production ready',
@@ -79,7 +106,7 @@ export function runFirewall(text: string, channel: Channel, rules: RepoTruthRule
   }
   for (const term of rules.neverExpose) {
     const c = norm(term).trim();
-    if (c && n.includes(c)) violations.push(`never-expose term present: "${term}"`);
+    if (c && n.includes(c)) violations.push('never-expose term present');
   }
   return [...new Set(violations)];
 }

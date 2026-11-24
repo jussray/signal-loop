@@ -50,15 +50,15 @@ export function sameOrigin(req: Request): boolean {
   const origin = req.headers.get('Origin');
   if (!origin) {
     const ref = req.headers.get('Referer');
-    if (!ref) return true; // non-browser clients; cookie still SameSite-protected
+    if (!ref) return false; // fail closed when origin cannot be established
     try {
-      return new URL(ref).host === new URL(req.url).host;
+      return new URL(ref).origin === new URL(req.url).origin;
     } catch {
       return false;
     }
   }
   try {
-    return new URL(origin).host === new URL(req.url).host;
+    return new URL(origin).origin === new URL(req.url).origin;
   } catch {
     return false;
   }

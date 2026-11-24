@@ -40,10 +40,11 @@ export async function getPublicRepo(env: Env, fullName: string): Promise<{ fullN
 }
 
 function toCommit(fullName: string, c: any): VerifiedCommit {
+  if (!SHA.test(String(c.sha ?? ''))) throw new GitHubError('upstream', 'Invalid provider SHA');
   return {
     repository: fullName,
-    sha: String(c.sha),
-    url: String(c.html_url),
+    sha: String(c.sha).toLowerCase(),
+    url: `https://github.com/${fullName}/commit/${String(c.sha).toLowerCase()}`,
     message: String(c.commit?.message ?? ''),
     author: String(c.author?.login ?? c.commit?.author?.name ?? ''),
     date: String(c.commit?.author?.date ?? c.commit?.committer?.date ?? ''),
@@ -52,6 +53,7 @@ function toCommit(fullName: string, c: any): VerifiedCommit {
 
 export async function listCommits(env: Env, fullName: string): Promise<VerifiedCommit[]> {
   if (!REPO_NAME.test(fullName)) throw new GitHubError('not_found', 'Invalid repository name');
+  await getPublicRepo(env, fullName); // visibility can change after repo connection
   const data = await gh(env, `/repos/${fullName}/commits?per_page=20`);
   return (Array.isArray(data) ? data : []).map((c) => toCommit(fullName, c));
 }
@@ -59,6 +61,7 @@ export async function listCommits(env: Env, fullName: string): Promise<VerifiedC
 /** Re-reads the exact commit server-side. This is what makes an evidence receipt "verified". */
 export async function getCommit(env: Env, fullName: string, sha: string): Promise<VerifiedCommit> {
   if (!REPO_NAME.test(fullName) || !SHA.test(sha)) throw new GitHubError('not_found', 'Invalid commit');
+  await getPublicRepo(env, fullName);
   const c = toCommit(fullName, await gh(env, `/repos/${fullName}/commits/${sha}`));
   if (c.sha.toLowerCase() !== sha.toLowerCase()) throw new GitHubError('upstream', 'Commit mismatch');
   return c;

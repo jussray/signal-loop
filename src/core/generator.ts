@@ -19,27 +19,27 @@ export interface VerifiedCommit {
 type Kind = 'feat' | 'fix' | 'perf' | 'refactor' | 'docs' | 'test' | 'security' | 'chore' | 'other';
 
 const WHY: Record<Kind, string> = {
-  feat: 'it gives users something they could not do before',
-  fix: 'it removes a problem users could hit',
-  perf: 'it makes the product faster',
-  refactor: 'it makes the next change cheaper and safer',
-  docs: 'it makes the project easier to understand and adopt',
-  test: 'it locks in behavior so it does not silently regress',
-  security: 'it closes a risk before it becomes an incident',
-  chore: 'it keeps the project healthy',
-  other: 'it moves the product forward',
+  feat: 'the commit describes a feature addition; runtime impact is unverified',
+  fix: 'the commit describes a fix; production impact is unverified',
+  perf: 'the commit describes a performance change; measured impact is unverified',
+  refactor: 'the commit describes an internal change; behavior is unverified',
+  docs: 'the commit describes documentation changes',
+  test: 'the commit describes test changes; results are unverified',
+  security: 'the commit describes a security change; protection is unverified',
+  chore: 'the commit describes maintenance work',
+  other: 'the commit describes a code change; outcome is unverified',
 };
 
 const VERB: Record<Kind, string> = {
-  feat: 'Shipped',
-  fix: 'Fixed',
-  perf: 'Sped up',
-  refactor: 'Reworked',
-  docs: 'Documented',
-  test: 'Locked in',
-  security: 'Hardened',
-  chore: 'Maintained',
-  other: 'Shipped',
+  feat: 'Committed',
+  fix: 'Committed',
+  perf: 'Committed',
+  refactor: 'Committed',
+  docs: 'Committed',
+  test: 'Committed',
+  security: 'Committed',
+  chore: 'Committed',
+  other: 'Committed',
 };
 
 export interface ParsedCommit {
@@ -127,17 +127,17 @@ export function draftFor(channel: Channel, c: VerifiedCommit, f: FiveW1H): strin
       `Why it matters: ${f.why}.`,
       p.body ? `\nWhat changed:\n${clamp(p.body, 600)}` : '',
       '',
-      `Proof (the actual commit): ${c.url}`,
-      '',
-      '#buildinpublic',
     ].filter((l, i, a) => !(l === '' && a[i - 1] === ''));
-    return clamp(lines.join('\n').trim(), max);
+    const proof = `\n\nProof (the actual commit): ${c.url}\n\n#buildinpublic`;
+    if (proof.length >= max) throw new Error('Proof URL exceeds LinkedIn allowance');
+    return clamp(lines.join('\n').trim(), max - proof.length) + proof;
   }
 
   // Short-form channels: keep the proof URL intact, trim the claim instead.
   const tail = `\n\nProof: ${c.url}`;
   const tag = channel === 'x' || channel === 'bluesky' ? '' : '\n#buildinpublic';
   const headRoom = max - tail.length - tag.length;
+  if (headRoom < 40) throw new Error('Proof URL exceeds channel allowance');
   const head = clamp(`${verb} in ${name}: ${what}. ${capitalize(f.why)}.`, Math.max(40, headRoom));
   return `${head}${tail}${tag}`;
 }
