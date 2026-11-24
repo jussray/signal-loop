@@ -6,7 +6,7 @@ import {
 import { GitHubError, REPO_NAME, getCommit, getPublicRepo, listCommits } from './lib/github.ts';
 import { CHANNELS, monthStartIso, planOf, type Channel, type Plan } from './core/plans.ts';
 import { buildFiveW1H, draftFor, signalScore, type VerifiedCommit } from './core/generator.ts';
-import { runFirewall } from './core/firewall.ts';
+import { runFirewall, redactSensitive, sourceSensitiveViolations } from './core/firewall.ts';
 import { evaluateSignal } from './core/policy.ts';
 import * as V from './views.ts';
 
@@ -66,7 +66,7 @@ async function startSession(req: Request, env: Env, userId: string): Promise<str
 }
 
 async function usedThisMonth(env: Env, userId: string): Promise<number> {
-  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM signals WHERE user_id = ? AND created_at >= ?')
+  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM signal_usage_events WHERE user_id = ? AND created_at >= ?')
     .bind(userId, monthStartIso()).first<{ n: number }>();
   return Number(r?.n ?? 0);
 }
@@ -132,14 +132,25 @@ async function dashboard(url: URL, env: Env, user: User): Promise<Response> {
   const repos = (await env.DB.prepare('SELECT id, full_name, never_claim, never_expose FROM repos WHERE user_id = ? ORDER BY created_at')
     .bind(user.id).all<V.RepoRow>()).results;
   const signals = (await env.DB.prepare(
-    `SELECT s.id, r.full_name AS repo_full_name, s.commit_sha, s.commit_url, s.channel, s.draft, s.decision, s.reasons, s.status, s.created_at
+    `SELECT s.id, r.full_name AS repo_full_name, r.never_claim, r.never_expose, s.commit_sha, s.commit_url, s.channel, s.draft, s.decision, s.reasons, s.status, s.created_at
      FROM signals s JOIN repos r ON r.id = s.repo_id WHERE s.user_id = ? ${status === 'all' ? '' : 'AND s.status = ?'}
      ORDER BY s.created_at DESC LIMIT 100`,
   ).bind(...(status === 'all' ? [user.id] : [user.id, status])).all<V.SignalRow>()).results;
+  const displaySignals = (signals as Array<V.SignalRow & { never_claim: string; never_expose: string }>).map((s) => {
+    const repoRules = { neverClaim: JSON.parse(s.never_claim || '[]') as string[],
+      neverExpose: JSON.parse(s.never_expose || '[]') as string[] };
+    const currentViolations = runFirewall(s.draft, s.channel, repoRules);
+    const masked = redactSensitive(s.draft, repoRules.neverExpose);
+    return { ...s, draft: masked,
+      decision: currentViolations.length ? 'blocked' : s.decision,
+      reasons: currentViolations.length
+        ? JSON.stringify([...new Set([...JSON.parse(s.reasons || '[]'), ...currentViolations])])
+        : s.reasons };
+  });
   const wl = await env.DB.prepare('SELECT 1 FROM waitlist WHERE user_id = ?').bind(user.id).first();
   const ok = url.searchParams.get('ok') === 'welcome' ? 'Account created. Connect a public repo to start.' : msg(url, 'ok');
   return html(V.dashboard({
-    user, repos, signals, usedThisMonth: await usedThisMonth(env, user.id), onWaitlist: !!wl, filter: status, ok, err: msg(url, 'err'),
+    user, repos, signals: displaySignals, usedThisMonth: await usedThisMonth(env, user.id), onWaitlist: !!wl, filter: status, ok, err: msg(url, 'err'),
   }));
 }
 
@@ -157,8 +168,14 @@ async function addRepo(req: Request, env: Env, user: User): Promise<Response> {
   const dup = await env.DB.prepare('SELECT 1 FROM repos WHERE user_id = ? AND lower(full_name) = lower(?)').bind(user.id, canonical).first();
   if (dup) return redirect('/app?err=repo_exists');
   const id = crypto.randomUUID();
-  await env.DB.prepare('INSERT INTO repos (id, user_id, full_name, created_at) VALUES (?, ?, ?, ?)')
-    .bind(id, user.id, canonical, nowIso()).run();
+  const inserted = await env.DB.prepare(`INSERT OR IGNORE INTO repos (id, user_id, full_name, created_at)
+    SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM repos WHERE user_id = ?) < ?`)
+    .bind(id, user.id, canonical, nowIso(), user.id, user.plan.maxRepos).run();
+  if (!inserted.meta?.changes) {
+    const exists = await env.DB.prepare('SELECT 1 FROM repos WHERE user_id = ? AND lower(full_name) = lower(?)')
+      .bind(user.id, canonical).first();
+    return redirect(exists ? '/app?err=repo_exists' : '/app?err=repo_limit');
+  }
   return redirect(`/app/repos/${id}?ok=repo_added`);
 }
 
@@ -184,7 +201,8 @@ async function repoPage(url: URL, env: Env, user: User, repo: V.RepoRow): Promis
   }
   return html(V.repoPage({
     user, repo, githubError, showAll: url.searchParams.get('all') === '1',
-    commits: commits.map((c) => ({ ...c, score: signalScore(c.message) })),
+    commits: commits.map((c) => ({ ...c, message: redactSensitive(c.message, rulesOf(repo).neverExpose),
+      author: redactSensitive(c.author, rulesOf(repo).neverExpose), score: signalScore(c.message) })),
     ok: msg(url, 'ok'), err: msg(url, 'err'),
   }));
 }
@@ -216,12 +234,21 @@ async function generate(req: Request, env: Env, user: User, repo: V.RepoRow): Pr
   } catch (e) {
     return redirect(`${back}?err=${ghErr(e)}`);
   }
-  const fiveW1h = buildFiveW1H(commit);
+  const repoRules = rulesOf(repo);
+  const sensitiveSource = [
+    ...sourceSensitiveViolations(commit.message),
+    ...runFirewall(commit.message, 'linkedin', { neverClaim: [], neverExpose: repoRules.neverExpose })
+      .filter((violation) => violation === 'never-expose term present'),
+  ];
+  const sanitizedCommit = { ...commit, message: redactSensitive(commit.message, repoRules.neverExpose),
+    author: redactSensitive(commit.author, repoRules.neverExpose) };
+  const fiveW1h = buildFiveW1H(sanitizedCommit);
   const connected = await connectedRepos(env, user);
   let created = 0;
   for (const channel of channels) {
-    const draft = draftFor(channel, commit, fiveW1h);
-    const violations = runFirewall(draft, channel, rulesOf(repo));
+    const draft = draftFor(channel, sanitizedCommit, fiveW1h);
+    const violations = [...runFirewall(draft, channel, repoRules), ...sensitiveSource];
+    if (!draft.includes(commit.url)) violations.push('draft must keep the exact proof link');
     const result = evaluateSignal(
       {
         repository: repo.full_name, channel, proofUrl: commit.url, sourceCommitSha: commit.sha, fiveW1h,
@@ -231,29 +258,62 @@ async function generate(req: Request, env: Env, user: User, repo: V.RepoRow): Pr
     );
     const r = await env.DB.prepare(
       `INSERT OR IGNORE INTO signals (id, user_id, repo_id, commit_sha, commit_url, channel, draft, five_w1h, decision, reasons, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?
+       WHERE (SELECT COUNT(*) FROM signal_usage_events WHERE user_id = ? AND created_at >= ?) < ?`,
     ).bind(crypto.randomUUID(), user.id, repo.id, commit.sha, commit.url, channel, draft, JSON.stringify(fiveW1h),
-      result.decision, JSON.stringify(result.reasons), nowIso(), nowIso()).run();
+      result.decision, JSON.stringify(result.reasons), nowIso(), nowIso(), user.id, monthStartIso(), user.plan.signalsPerMonth).run();
     created += r.meta?.changes ?? 0;
   }
-  return redirect(created > 0 ? '/app?ok=generated' : `${back}?err=already`);
+  if (created > 0) return redirect('/app?ok=generated');
+  return redirect(`${back}?err=${await usedThisMonth(env, user.id) >= user.plan.signalsPerMonth ? 'usage_limit' : 'already'}`);
 }
 
 async function signalAction(req: Request, env: Env, user: User, id: string, action: string): Promise<Response> {
   const s = await env.DB.prepare(
-    `SELECT s.id, s.channel, s.commit_sha, s.commit_url, s.five_w1h, s.decision, s.status, r.full_name, r.never_claim, r.never_expose, r.id AS repo_id
-     FROM signals s JOIN repos r ON r.id = s.repo_id WHERE s.id = ? AND s.user_id = ?`,
+    `SELECT s.id, s.channel, s.draft, s.commit_sha, s.commit_url, s.five_w1h, s.decision, s.status, r.full_name, r.never_claim, r.never_expose, r.id AS repo_id
+     FROM signals s JOIN repos r ON r.id = s.repo_id AND r.user_id = s.user_id WHERE s.id = ? AND s.user_id = ?`,
   ).bind(id, user.id).first<Record<string, string>>();
   if (!s) return html(V.notFound(user), 404);
   if (s.status !== 'draft') return redirect('/app');
 
   if (action === 'approve') {
     if (s.decision === 'blocked') return redirect('/app?err=blocked');
-    await env.DB.prepare("UPDATE signals SET status = 'approved', updated_at = ? WHERE id = ?").bind(nowIso(), id).run();
+    const channel = s.channel as Channel;
+    if (!user.plan.channels.includes(channel)) return redirect('/app?err=channel_locked');
+    let commit: VerifiedCommit;
+    try {
+      commit = await getCommit(env, s.full_name!, s.commit_sha!);
+    } catch (error) {
+      return redirect(`/app?err=${ghErr(error)}`);
+    }
+    const violations = runFirewall(s.draft!, channel, {
+      neverClaim: JSON.parse(s.never_claim || '[]'), neverExpose: JSON.parse(s.never_expose || '[]'),
+    });
+    if (!s.draft!.includes(s.commit_url!)) violations.push('draft must keep the proof link to the commit');
+    if (commit.url !== s.commit_url) violations.push('server-verified proof URL changed');
+    const checked = evaluateSignal(
+      {
+        repository: s.full_name!, channel, proofUrl: commit.url, sourceCommitSha: commit.sha,
+        fiveW1h: JSON.parse(s.five_w1h!),
+        evidenceReceipt: {
+          verified: true, provider: 'github', repository: commit.repository,
+          sourceCommitSha: commit.sha, proofUrl: commit.url,
+        },
+      },
+      { connectedRepositories: await connectedRepos(env, user), grant: null, firewallViolations: violations },
+    );
+    const state = checked.decision === 'blocked' ? 'draft' : 'approved';
+    const updated = await env.DB.prepare(
+      `UPDATE signals SET status = ?, decision = ?, reasons = ?, updated_at = ?
+       WHERE id = ? AND user_id = ? AND status = 'draft' AND draft = ?
+       AND EXISTS (SELECT 1 FROM repos r WHERE r.id = ? AND r.user_id = ? AND r.never_claim = ? AND r.never_expose = ?)`,
+    ).bind(state, checked.decision, JSON.stringify(checked.reasons), nowIso(),
+      id, user.id, s.draft, s.repo_id, user.id, s.never_claim, s.never_expose).run();
+    if (!updated.meta?.changes || state === 'draft') return redirect('/app?err=blocked');
     return redirect('/app?ok=approved');
   }
   if (action === 'reject') {
-    await env.DB.prepare("UPDATE signals SET status = 'rejected', updated_at = ? WHERE id = ?").bind(nowIso(), id).run();
+    await env.DB.prepare("UPDATE signals SET status = 'rejected', updated_at = ? WHERE id = ? AND user_id = ? AND status = 'draft'").bind(nowIso(), id, user.id).run();
     return redirect('/app?ok=rejected');
   }
   if (action === 'edit') {
@@ -271,8 +331,8 @@ async function signalAction(req: Request, env: Env, user: User, id: string, acti
       },
       { connectedRepositories: await connectedRepos(env, user), grant: null, firewallViolations: violations },
     );
-    await env.DB.prepare('UPDATE signals SET draft = ?, decision = ?, reasons = ?, updated_at = ? WHERE id = ?')
-      .bind(draft.slice(0, 5000), result.decision, JSON.stringify(result.reasons), nowIso(), id).run();
+    await env.DB.prepare("UPDATE signals SET draft = ?, decision = ?, reasons = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = 'draft'")
+      .bind(draft.slice(0, 5000), result.decision, JSON.stringify(result.reasons), nowIso(), id, user.id).run();
     return redirect('/app?ok=saved');
   }
   return html(V.notFound(user), 404);
@@ -322,8 +382,8 @@ export async function handle(req: Request, env: Env): Promise<Response> {
       if (m[2] === 'generate' && method === 'POST') return generate(req, env, user, repo);
       if (m[2] === 'rules' && method === 'POST') {
         const f = await formData(req);
-        await env.DB.prepare('UPDATE repos SET never_claim = ?, never_expose = ? WHERE id = ?')
-          .bind(JSON.stringify(lines(f.get('never_claim')?.[0] ?? '')), JSON.stringify(lines(f.get('never_expose')?.[0] ?? '')), repo.id).run();
+        await env.DB.prepare('UPDATE repos SET never_claim = ?, never_expose = ? WHERE id = ? AND user_id = ?')
+          .bind(JSON.stringify(lines(f.get('never_claim')?.[0] ?? '')), JSON.stringify(lines(f.get('never_expose')?.[0] ?? '')), repo.id, user.id).run();
         return redirect(`/app/repos/${repo.id}?ok=rules_saved`);
       }
       if (m[2] === 'delete' && method === 'POST') {
