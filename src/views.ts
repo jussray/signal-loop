@@ -1,3 +1,4 @@
+import { BRAND_CSS, BRAND_JS, GLOBAL_SHELL_CSS, brandWelcomeMarkup } from './brand.ts';
 import { esc } from './lib/http.ts';
 import { CHANNEL_LABELS, CHANNEL_LIMITS, PLANS, type Channel, type Plan } from './core/plans.ts';
 
@@ -45,14 +46,14 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px 8px
 .score{font:600 13px var(--mono)}.chk{display:inline-flex;gap:4px;align-items:center;margin-right:10px;font-weight:400;font-size:13px}
 details summary{cursor:pointer;font-size:14px;color:var(--muted)}
 footer{border-top:1px solid var(--line);padding:28px 0;color:var(--muted);font-size:14px}
-`;
+` + BRAND_CSS + GLOBAL_SHELL_CSS;
 
-export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#16140F"/><circle cx="16" cy="16" r="8" fill="none" stroke="#E8572A" stroke-width="3"/><circle cx="16" cy="16" r="2.5" fill="#E8572A"/></svg>`;
+export const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><linearGradient id="loop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#bc70ff"/><stop offset=".55" stop-color="#7b92ff"/><stop offset="1" stop-color="#61edff"/></linearGradient></defs><rect width="48" height="48" rx="13" fill="#121138"/><text x="24" y="34" font-size="39" text-anchor="middle" font-family="Georgia" fill="url(#loop)">∞</text></svg>`;
 
 export const JS = `
 document.addEventListener('click',function(e){var b=e.target.closest('[data-copy]');if(!b)return;var el=document.getElementById(b.getAttribute('data-copy'));if(!el)return;navigator.clipboard.writeText(el.innerText).then(function(){var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1200)})});
 document.addEventListener('submit',function(e){var m=e.target.getAttribute('data-confirm');if(m&&!confirm(m))e.preventDefault()});
-`;
+` + BRAND_JS;
 
 export interface ViewUser {
   email: string;
@@ -63,11 +64,11 @@ export function layout(title: string, body: string, user: ViewUser | null = null
   const nav = user
     ? `<a href="/app">Dashboard</a><span class="muted">${esc(user.email)}</span><form method="post" action="/logout" style="margin:0"><button class="btn ghost sm" type="submit">Log out</button></form>`
     : `<a href="/#pricing">Pricing</a><a href="/login">Log in</a><a class="btn sm" href="/signup">Start free</a>`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="description" content="Signal Loop turns verified commits into build-in-public posts, with a truth firewall that blocks overclaims and leaked secrets."></head><body>
-<header class="top"><div class="wrap"><a class="brand" href="/">Signal<b>·</b>Loop</a><nav>${nav}</nav></div></header>
+  const fullscreen = body.startsWith('<div class="sl-app"');
+  const frame = fullscreen ? body : `<header class="top"><div class="wrap"><a class="brand" href="/">∞ Signal<b>·</b>Loop</a><nav>${nav}</nav></div></header>
 <main class="wrap">${body}</main>
-<footer><div class="wrap">Signal Loop · every post backed by a commit · <a href="/#how">How it works</a></div></footer>
-<script src="/app.js"></script></body></html>`;
+<footer><div class="wrap">Signal Loop · every post backed by a commit · <a href="/#how">How it works</a></div></footer>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d2b"><title>${esc(title)}</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="description" content="Signal Loop turns verified GitHub commits into evidence-backed social drafts with a truth firewall and human approval."></head><body class="${fullscreen ? 'sl-welcome' : ''}">${frame}<script src="/app.js"></script></body></html>`;
 }
 
 export function flash(kind: 'err' | 'ok', msg: string | null): string {
@@ -82,24 +83,7 @@ function planCard(p: Plan, cta: string): string {
 }
 
 export function landing(user: ViewUser | null): string {
-  const cta = user ? `<a class="btn" href="/app">Open dashboard</a>` : `<a class="btn" href="/signup">Start free, no card</a> <a class="btn ghost" href="#how">How it works</a>`;
-  return layout(
-    'Signal Loop: build in public without overclaiming',
-    `<section class="hero"><h1>Your commits are the story. <em>Nothing invented.</em></h1>
-<p class="lede">Signal Loop reads what you actually shipped on GitHub, drafts posts for X, LinkedIn and Bluesky, and blocks anything a commit can't prove, including leaked secrets.</p>
-<p>${cta}</p>
-<div class="receipt" aria-label="Example signal receipt"><div class="row"><span>SIGNAL</span><span>REVIEW</span></div><hr>
-<div>Shipped in acme-app: Add magic-link login. It gives users something they could not do before.</div><hr>
-<div class="row"><span>proof</span><span>github.com/acme/acme-app/commit/3f9c2e1</span></div>
-<div class="row"><span>evidence</span><span>verified · sha bound</span></div><div class="row"><span>firewall</span><span>0 violations</span></div></div></section>
-<h2 class="section-title" id="how">How it works</h2><p class="muted">One loop: evidence, draft, firewall, review, post.</p>
-<div class="grid3"><div class="card"><h3>1 · Evidence</h3><p>Connect a public repo. We read commits server-side from GitHub, so every draft carries a verified SHA and a proof link.</p></div>
-<div class="card"><h3>2 · Draft</h3><p>Each commit becomes a who/what/where/when/why/how frame, then a post sized for each channel. Noise like merges and dependency bumps is scored low.</p></div>
-<div class="card"><h3>3 · Firewall</h3><p>Blocks unprovable claims ("production-ready", "SOC 2 certified"), your own never-say lists, and anything that looks like a key or token.</p></div></div>
-<h2 class="section-title" id="pricing">Pricing</h2><p class="muted">Start free. Upgrade when the loop is working for you.</p>
-<div class="grid3">${planCard(PLANS.free, `<a class="btn" href="${user ? '/app' : '/signup'}">${user ? 'Your plan' : 'Start free'}</a>`)}${planCard(PLANS.pro, `<a class="btn ghost" href="${user ? '/app#upgrade' : '/signup'}">Join early access</a>`)}</div>`,
-    user,
-  );
+  return layout('Welcome to Signal Loop — Build. Verify. Share. Grow.', brandWelcomeMarkup(Boolean(user)), user);
 }
 
 export function authPage(mode: 'signup' | 'login', error: string | null, email = ''): string {
