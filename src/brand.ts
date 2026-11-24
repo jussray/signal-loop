@@ -73,4 +73,9 @@ body:not(.sl-welcome) input,body:not(.sl-welcome) textarea{background:#0b0d2e;co
 body:not(.sl-welcome) .meter span{background:linear-gradient(90deg,#55dbf6,#bd7eff)}
 body:not(.sl-welcome) nav a:hover{color:#87edfb}
 body.sl-welcome{margin:0;background:#07091d}
+
+.sl-dash-intro{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:20px;margin:27px 0 21px;padding:27px 30px;border:1px solid #ab83ee88;border-radius:24px;background:linear-gradient(110deg,#261a5aee,#12183cdd),radial-gradient(circle at 85% 50%,#9b55f344,transparent 52%);box-shadow:0 16px 50px #01011c66;backdrop-filter:blur(20px)}
+.sl-dash-intro h1{font-size:clamp(24px,3.5vw,38px);letter-spacing:-.05em;margin:6px 0;line-height:1.12}.sl-dash-intro p{color:#d7c8f3;max-width:65ch;margin:6px 0 0}.sl-dash-intro .sl-dash-mark{color:#c389ff;font:normal 76px Georgia,serif;line-height:.9;text-shadow:0 0 35px #c67bff;flex-shrink:0}
+.sl-dash-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:0 0 23px}.sl-dash-steps span{padding:12px 10px;text-align:center;background:#1b1548bb;border:1px solid #886cb16b;border-radius:12px;font-size:13px;font-weight:700;color:#e7d8ff}
+@media(max-width:680px){.sl-dash-intro{margin:15px 0;padding:22px 18px}.sl-dash-intro .sl-dash-mark{font-size:52px}.sl-dash-steps{grid-template-columns:repeat(2,1fr)}.sl-dash-steps span{font-size:12px}}
 `;
