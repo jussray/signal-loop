@@ -60,18 +60,19 @@ export function brandWelcomeMarkup(userSignedIn=false):string {
 
 /** Branded interior skin while retaining original server-rendered authentication and signal workflow. */
 export const GLOBAL_SHELL_CSS = String.raw`
-body:not(.sl-welcome){--paper:#0b0d2b;--card:rgba(24,20,63,.96);--ink:#f6eeff;--muted:#bcb2d9;--line:#62528b;--accent:#b578ff;--accent-ink:#fff;--ok:#77ebcc;--warn:#ffce86;--bad:#ff879b;background:radial-gradient(ellipse at 83% 4%,#372060,#101032 52%,#090b24);color:var(--ink)}
+body:not(.sl-welcome){--paper:#0b0d2b;--card:rgba(24,20,63,.96);--ink:#f6eeff;--muted:#bcb2d9;--line:#62528b;--accent:#b578ff;--accent-ink:#fff;--ok:#77ebcc;--warn:#ffce86;--bad:#ff879b;background:linear-gradient(180deg,rgba(9,7,28,.82),rgba(8,7,30,.92) 76%),url('/assets/signal-world.webp') center top/cover fixed no-repeat;background-color:#0b0d2b;color:var(--ink)}
 body:not(.sl-welcome) header.top{background:rgba(16,13,47,.78);backdrop-filter:blur(16px);border-color:#6e5a9d66}
 body:not(.sl-welcome) .brand{font:800 24px/1.2 system-ui,sans-serif;letter-spacing:-.04em;color:#faf5ff}
 body:not(.sl-welcome) .brand b{color:#79cdfb}
 body:not(.sl-welcome) .btn{border-color:#b794ff88;background:linear-gradient(115deg,#a154f5,#6d54e7);color:white;box-shadow:0 6px 21px #7b4be83d}
 body:not(.sl-welcome) .btn.ghost{background:#2d234b9a;color:#f5efff;box-shadow:none}
-body:not(.sl-welcome) .card,body:not(.sl-welcome) .receipt{background:linear-gradient(155deg,#211b4ecf,#111330e0);border-color:#8b68bd55;box-shadow:0 14px 45px #02031c55;backdrop-filter:blur(16px)}
+body:not(.sl-welcome) .card,body:not(.sl-welcome) .receipt{background:linear-gradient(155deg,#211b4ec4,#111330c9);border-color:#8b68bd55;box-shadow:0 14px 45px #02031c55;backdrop-filter:blur(16px)}
 body:not(.sl-welcome) .card,body:not(.sl-welcome) .receipt{border-radius:19px}
 body:not(.sl-welcome) .hero h1 em{color:#b77cff}
 body:not(.sl-welcome) input,body:not(.sl-welcome) textarea{background:#0b0d2e;color:#f5eeff;border-color:#75619b}
 body:not(.sl-welcome) .meter span{background:linear-gradient(90deg,#55dbf6,#bd7eff)}
 body:not(.sl-welcome) nav a:hover{color:#87edfb}
+@media(max-width:680px){body:not(.sl-welcome){background:linear-gradient(180deg,rgba(9,7,28,.85),rgba(8,7,30,.94) 70%),url('/assets/signal-world-mobile.webp') center top/cover scroll no-repeat}}
 body.sl-welcome{margin:0;background:#07091d}
 
 .sl-dash-intro{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:20px;margin:27px 0 21px;padding:27px 30px;border:1px solid #ab83ee88;border-radius:24px;background:linear-gradient(110deg,#261a5aee,#12183cdd),radial-gradient(circle at 85% 50%,#9b55f344,transparent 52%);box-shadow:0 16px 50px #01011c66;backdrop-filter:blur(20px)}
