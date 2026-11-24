@@ -156,6 +156,8 @@ export function dashboard(opts: {
   return layout(
     'Dashboard · Signal Loop',
     `${flash('ok', opts.ok)}${flash('err', opts.err)}
+<div class="sl-dash-intro"><div><span class="pill review">YOUR SIGNAL STUDIO</span><h1>Build something. Show the proof. ✦</h1><p>Collect verified commits, create an evidence-backed draft, check it through the truth firewall, and approve it when ready.</p></div><span class="sl-dash-mark" aria-hidden="true">∞</span></div>
+<div class="sl-dash-steps" aria-label="Your signal workflow"><span>01 · Collect</span><span>02 · Draft</span><span>03 · Verify</span><span>04 · Approve</span></div>
 <div class="dash"><aside class="stack">
 <div class="card"><div class="meta"><span class="pill ${p.id === 'pro' ? 'approved' : 'review'}">${esc(p.name)} plan</span></div>
 <p style="margin:12px 0 6px"><strong data-testid="usage">${usedThisMonth} / ${p.signalsPerMonth}</strong> <span class="muted">drafts this month</span></p><div class="meter"><span style="width:${pct}%"></span></div>
