@@ -20,3 +20,11 @@ jobs:
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+      - name: Preserve mobile and desktop browser proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-loop-browser-proof
+          path: e2e/artifacts/*.png
+          if-no-files-found: ignore
+          retention-days: 7
