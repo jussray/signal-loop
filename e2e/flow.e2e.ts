@@ -84,6 +84,7 @@ try {
   await page.click('button[type=submit]');
   await page.waitForURL(/\/app\?ok=welcome/);
   assert.equal(await page.getByTestId('usage').innerText(), '0 / 30');
+  assert.equal(await page.locator('.sl-dash-intro').count(), 1);
   const cookies = await ctx.cookies();
   const sess = cookies.find((c: any) => c.name === 'sl_session');
   assert.ok(sess?.httpOnly, 'session cookie is HttpOnly');
