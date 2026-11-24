@@ -54,7 +54,7 @@ export function redactSensitive(input: string, neverExpose: string[] = []): stri
   for (const pattern of PROMPT_LEAK_PATTERNS) {
     redacted = redacted.replace(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'), '[redacted prompt text]');
   }
-  const escapePattern = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\/** Claims a commit can never prove on its own. Users add repo-specific ones. */');
+  const escapePattern = (part: string) => Array.from(part, ch => '.+*?^$()[]{}|\\\\'.includes(ch) ? '\\\\' + ch : ch).join('');
   for (const term of neverExpose) {
     const parts = term.trim().split(/\s+/).filter(Boolean);
     if (!parts.length) continue;
