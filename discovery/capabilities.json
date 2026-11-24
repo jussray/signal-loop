@@ -1,0 +1,9 @@
+{
+  "project": "signal-loop",
+  "status": "draft",
+  "intendedUseCases": [
+    "Connect signals to evidence and drafts",
+    "Review communication and measure outcomes"
+  ],
+  "verifiedCapabilities": []
+}
