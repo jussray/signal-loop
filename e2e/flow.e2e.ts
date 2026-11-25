@@ -51,13 +51,28 @@ try {
   page.on('console', (m: any) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 
   await page.goto(APP + '/');
-  assert.match(await page.locator('h1').innerText(), /Your commits are the story/);
-  assert.equal(await page.locator('[data-plan]').count(), 2);
-  assert.match(await page.locator('[data-plan="pro"]').innerText(), /Early access/);
+  assert.match(await page.locator('h1').innerText(), /Your builds become/);
+  assert.equal(await page.locator('.sl-plan').count(), 2);
+  assert.match(await page.locator('.sl-plan').last().innerText(), /Early access/);
   await page.screenshot({ path: join(out, '01-landing.png'), fullPage: true });
-  step('landing renders hero + 2 pricing tiers (Pro shows no invented price)');
+  step('landing renders cinematic welcome and 2 tiers (Pro shows no invented price)');
 
-  await page.click('text=Start free, no card');
+  const welcomeMobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  const mobilePage = await welcomeMobile.newPage();
+  await mobilePage.goto(APP + '/');
+  assert.equal(await mobilePage.locator('.sl-hero-art').count(), 1);
+  assert.equal(await mobilePage.locator('.sl-companion').count(), 4);
+  assert.equal(await mobilePage.evaluate(() => document.documentElement.scrollWidth), 390);
+  await mobilePage.locator('[data-sl-menu]').click();
+  assert.equal(await mobilePage.locator('[data-sl-menu]').getAttribute('aria-expanded'), 'true');
+  await mobilePage.locator('[data-sl-menu]').click();
+  await mobilePage.locator('[data-sl-companion="nova"]').click();
+  assert.equal(await mobilePage.locator('[data-sl-companion="nova"]').getAttribute('aria-pressed'), 'true');
+  await mobilePage.screenshot({ path: join(out, '01-mobile-brand.png'), fullPage: true });
+  await welcomeMobile.close();
+  step('mobile visual: responsive scene, menu and companion selection');
+
+  await page.click('text=Start your signal journey');
   await page.waitForURL(APP + '/signup');
   await page.fill('#email', 'founder@example.com');
   await page.fill('#password', 'short');
@@ -69,6 +84,7 @@ try {
   await page.click('button[type=submit]');
   await page.waitForURL(/\/app\?ok=welcome/);
   assert.equal(await page.getByTestId('usage').innerText(), '0 / 30');
+  assert.equal(await page.locator('.sl-dash-intro').count(), 1);
   const cookies = await ctx.cookies();
   const sess = cookies.find((c: any) => c.name === 'sl_session');
   assert.ok(sess?.httpOnly, 'session cookie is HttpOnly');
