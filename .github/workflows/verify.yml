@@ -1,7 +1,7 @@
 name: Verify SignalLoop MCP and SaaS
 on:
   push:
-    branches: [main, feat/standalone-freemium-v1]
+    branches: [main, feat/standalone-freemium-v1, feat/thinking-companion-loop]
   pull_request:
 permissions:
   contents: read
